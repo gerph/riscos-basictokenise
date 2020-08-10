@@ -22,7 +22,7 @@ tool_dir:
 	mkdir -p $(ROTOOL_DIR)
 
 test:
-    echo Tests not yet implemented
+	echo Tests not yet implemented
 	#mkdir -p ../testdata/h
 	#mkdir -p ../testdata/pas
 	#mkdir -p ../artifacts
