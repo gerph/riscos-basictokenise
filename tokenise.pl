@@ -1,0 +1,351 @@
+#!/usr/bin/perl
+##
+# BASIC tokeniser; copied from HdrToH
+#
+
+my $input = shift;
+my $output = shift;
+
+if (!defined $input or !defined $output)
+{
+    die "Syntax: $0 <input> <output>\n";
+}
+
+basic_init();
+
+my $basic = [];
+open(my $fh, "< $input") || die "Cannot read '$input': $!\n";
+while (<$fh>)
+{
+    chomp;
+    my $line = $_;
+    push @$basic, basic_tokenise($line);
+}
+close($fh);
+
+push @$basic, basic_trailer();
+
+$data = join('', @$basic);
+open(my $fh, "> $output") || die "Cannot write '$output': $!\n";
+print $fh $data;
+close($fh);
+
+
+# Set up our BASIC tokeniser system
+sub basic_init
+{
+  $basic_line = 0;
+  $basflag_ignore_next = 1;
+  $basflag_transfer_r  = 2;
+  $basflag_transfer_l  = 4;
+  $basflag_two_byte    = 8;
+  $basflag_constant    = 16;
+  $basflag_giveup      = 32;
+  $basflag_polymorphic = 64;
+  $basflag_has_bracket = 128;
+
+  %bastoken = (
+    "AND" => [0x80, $basflag_transfer_r],
+    "ABS" => [0x94, 0],
+    "ACS" => [0x95, 0],
+    "ADVAL" => [0x96, 0],
+    "ASC" => [0x97, 0],
+    "ASN" => [0x98, 0],
+    "ATN" => [0x99, 0],
+    "AUTO" => [0x8f, $basflag_constant + $basflag_two_byte],
+    "APPEND" => [0x8e, $basflag_two_byte + $basflag_transfer_r],
+
+    "BGET" => [0x9a, $basflag_ignore_next],
+    "BPUT" => [0xd5, $basflag_transfer_r + $basflag_ignore_next],
+    "BEATS" => [0x9e, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "BEAT" => [0x8f, $basflag_two_byte + $basflag_transfer_l + $basflag_transfer_r],
+
+    "COLOUR" => [0xfb, $basflag_transfer_r],
+    "CALL" => [0xd6, $basflag_transfer_r],
+    "CASE" => [0x8e, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "CHAIN" => [0xd7, $basflag_transfer_r],
+    "CHR\$" => [0xbd, 0],
+    "CLEAR" => [0xd8, $basflag_ignore_next],
+    "CLOSE" => [0xd9, $basflag_transfer_r + $basflag_ignore_next],
+    "CLG" => [0xda, $basflag_ignore_next],
+    "CLS" => [0xdb, $basflag_ignore_next],
+    "COS" => [0x9b, 0],
+    "COUNT" => [0x9c, $basflag_ignore_next],
+    "CIRCLE" => [0x8f, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "CRUNCH" => [0x90, $basflag_two_byte + $basflag_transfer_r],
+
+    "DATA" => [0xdc, $basflag_giveup],
+    "DEG" => [0x9d, 0],
+    "DEF" => [0xdd, 0],
+    "DELETE" => [0x91, $basflag_constant + $basflag_two_byte],
+    "DIV" => [0x81, 0],
+    "DIM" => [0xde, $basflag_transfer_r],
+    "DRAW" => [0xdf, $basflag_transfer_r],
+
+    "ENDPROC" => [0xe1, $basflag_ignore_next],
+    "EDIT" => [0x92, $basflag_giveup + $basflag_two_byte],
+    "ENDWHILE" => [0xce, $basflag_ignore_next],
+    "ENDCASE" => [0xcb, $basflag_ignore_next],
+    "ENDIF" => [0xcd, $basflag_ignore_next],
+    "END" => [0xe0, $basflag_ignore_next],
+    "ENVELOPE" => [0xe2, $basflag_transfer_r],
+    "ELSE" => [0x8b, $basflag_constant + $basflag_transfer_l],
+    "EVAL" => [0xa0, 0],
+    "ERL" => [0x9e, $basflag_ignore_next],
+    "ERROR" => [0x85, $basflag_transfer_l],
+    "EOF" => [0xc5, $basflag_ignore_next],
+    "EOR" => [0x82, $basflag_transfer_r],
+    "ERR" => [0x9f, $basflag_ignore_next],
+    "EXP" => [0xa1, 0],
+    "EXT" => [0xa2, $basflag_ignore_next],
+    "ELLIPSE" => [0x9d, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+
+    "FOR" => [0xe3, $basflag_transfer_r],
+    "FALSE" => [0xa3, $basflag_ignore_next],
+    "FILL" => [0x90, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "FN" => [0xa4, $basflag_transfer_r],
+
+    "GOTO" => [0xe5, $basflag_constant + $basflag_transfer_r],
+    "GET\$" => [0xbe, 0],
+    "GET" => [0xa5, 0],
+    "GOSUB" => [0xe4, $basflag_constant + $basflag_transfer_r],
+    "GCOL" => [0xe6, $basflag_transfer_r],
+
+    "HIMEM" => [0x93, $basflag_polymorphic + $basflag_transfer_r + $basflag_ignore_next],
+    "HELP" => [0x93, $basflag_two_byte + $basflag_ignore_next],
+
+    "INPUT" => [0xe8, $basflag_transfer_r],
+    "IF" => [0xe7, $basflag_transfer_r],
+    "INKEY\$" => [0xbf, 0],
+    "INKEY" => [0xa6, 0],
+    "INT" => [0xa8, 0],
+    "INSTR(" => [0xa7, $basflag_has_bracket],
+    "INSTALL" => [0x9f, $basflag_two_byte + $basflag_transfer_r],
+
+    "LIST" => [0x94, $basflag_constant + $basflag_two_byte],
+    "LINE" => [0x86, $basflag_transfer_r],
+    "LOAD" => [0x95, $basflag_transfer_r + $basflag_two_byte],
+    "LOMEM" => [0x92, $basflag_polymorphic + $basflag_transfer_r + $basflag_ignore_next],
+    "LOCAL" => [0xea, $basflag_transfer_r],
+    "LEFT\$(" => [0xc0, $basflag_has_bracket],
+    "LEN" => [0xa9, 0],
+    "LET" => [0xe9, $basflag_transfer_l],
+    "LOG" => [0xab, 0],
+    "LN" => [0xaa, 0],
+    "LIBRARY" => [0x9b, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "LVAR" => [0x96, $basflag_two_byte + $basflag_ignore_next],
+
+    "MID\$(" => [0xc1, $basflag_has_bracket],
+    "MODE" => [0xeb, $basflag_transfer_r],
+    "MOD" => [0x83, 0],
+    "MOVE" => [0xec, $basflag_transfer_r],
+    "MOUSE" => [0x97, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+
+    "NEXT" => [0xed, $basflag_transfer_r],
+    "NEW" => [0x97, $basflag_two_byte + $basflag_ignore_next],
+    "NOT" => [0xac, 0],
+
+    "OLD" => [0x98, $basflag_two_byte + $basflag_ignore_next],
+    "ON" => [0xee, $basflag_transfer_r],
+    "OFF" => [0x87, 0],
+    "OF" => [0xca, 0],
+    "ORIGIN" => [0x91, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "OR" => [0x84, $basflag_transfer_r],
+    "OPENIN" => [0x8e, 0],
+    "OPENOUT" => [0xae, 0],
+    "OPENUP" => [0xad, 0],
+    "OSCLI" => [0xff, $basflag_transfer_r],
+    "OTHERWISE" => [0x7f, $basflag_transfer_l],
+    "OVERLAY" => [0xa3, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+
+    "PRINT" => [0xf1, $basflag_transfer_r],
+    "PAGE" => [0x90, $basflag_polymorphic + $basflag_transfer_r + $basflag_ignore_next],
+    "PTR" => [0x8f, $basflag_polymorphic + $basflag_transfer_r + $basflag_ignore_next],
+    "PI" => [0xaf, $basflag_ignore_next],
+    "PLOT" => [0xf0, $basflag_transfer_r],
+    "POINT(" => [0xb0, $basflag_has_bracket],
+    "POINT" => [0x92, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "PROC" => [0xf2, $basflag_transfer_r],
+    "POS" => [0xb1, $basflag_ignore_next],
+
+    "QUIT" => [0x98, $basflag_polymorphic + $basflag_two_byte + $basflag_ignore_next],
+
+    "RETURN" => [0xf8, $basflag_ignore_next],
+    "REPEAT" => [0xf5, 0],
+    "REPORT" => [0xf6, $basflag_ignore_next],
+    "READ" => [0xf3, $basflag_transfer_r],
+    "REM" => [0xf4, $basflag_giveup],
+    "RUN" => [0xf9, $basflag_ignore_next],
+    "RAD" => [0xb2, 0],
+    "RESTORE" => [0xf7, $basflag_constant + $basflag_transfer_r],
+    "RIGHT\$(" => [0xc2, $basflag_has_bracket],
+    "RND" => [0xb3, $basflag_ignore_next],
+    "RECTANGLE" => [0x93, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "RENUMBER" => [0x99, $basflag_constant + $basflag_two_byte],
+
+    "STEP" => [0x88, 0],
+    "SAVE" => [0x9a, $basflag_two_byte + $basflag_transfer_r],
+    "SGN" => [0xb4, 0],
+    "SIN" => [0xb5, 0],
+    "SQR" => [0xb6, 0],
+    "SOUND" => [0xd4, $basflag_transfer_r],
+    "SPC" => [0x89, 0],
+    "STR\$" => [0xc3, 0],
+    "STRING\$(" => [0xc4, $basflag_has_bracket + $basflag_transfer_r],
+    "STOP" => [0xfa, $basflag_ignore_next],
+    "STEREO" => [0xa2, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "SUM" => [0x8e, $basflag_two_byte + $basflag_transfer_l + $basflag_transfer_r],
+    "SWAP" => [0x94, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "SYS" => [0x99, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+
+    "TAN" => [0xb7, 0],
+    "TAB(" => [0x8a, $basflag_has_bracket],
+    "TEMPO" => [0x9f, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "TEXTLOAD" => [0x9b, $basflag_two_byte + $basflag_transfer_r],
+    "TEXTSAVE" => [0x9c, $basflag_two_byte + $basflag_transfer_r],
+    "THEN" => [0x8c, $basflag_constant + $basflag_transfer_l],
+    "TIME" => [0x91, $basflag_polymorphic + $basflag_transfer_r + $basflag_ignore_next],
+    "TINT" => [0x9c, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "TO" => [0xb8, 0],
+    "TRACE" => [0xfc, $basflag_constant + $basflag_transfer_r],
+    "TRUE" => [0xb9, $basflag_ignore_next],
+    "TWINO" => [0x9e, $basflag_two_byte + $basflag_transfer_r],
+    "TWIN" => [0x9d, $basflag_two_byte + $basflag_ignore_next],
+
+    "UNTIL" => [0xfd, $basflag_transfer_r],
+    "USR" => [0xba, 0],
+
+    "VDU" => [0xef, $basflag_transfer_r],
+    "VAL" => [0xbb, 0],
+    "VPOS" => [0xbc, $basflag_ignore_next],
+    "VOICES" => [0xa0, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "VOICE" => [0xa1, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+
+    "WHILE" => [0x95, $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r],
+    "WHEN" => [0xc9, $basflag_transfer_r],
+    "WAIT" => [0x96, $basflag_polymorphic + $basflag_two_byte + $basflag_ignore_next],
+    "WIDTH" => [0xfe, $basflag_transfer_r]
+  );
+
+  %basprefix = (
+    $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r => 0xc8, # Statement like
+    $basflag_two_byte + $basflag_transfer_l + $basflag_transfer_r => 0xc6,  # Function like
+    $basflag_two_byte + $basflag_ignore_next => 0xc7, # Directive like
+    $basflag_polymorphic + $basflag_two_byte + $basflag_ignore_next => 0xc7, # Directive like
+  );
+
+  # foreach $name (keys %bastoken)
+  # {
+    # $tok = $bastoken{$name}[0];
+    # $flags = $bastoken{$name}[1];
+    # print "$name : $tok : $flags\n";
+  # }
+}
+
+
+##
+# Tokenise a BASIC line.
+#
+# This is a rudimentary routine to tokenise a line of BASIC.
+# It's not astoundingly fast, but it does the job we need for this converter.
+#
+# @param[in] $line  Line to read
+#
+# @return Tokenised string
+sub basic_tokenise
+{
+  local ($line)=@_;
+  local ($acc, $name);
+  $acc = "";
+
+  if ($acc =~ s/^ *(\d+)//)
+  {
+    # They prefixed with a line number, so we use it.
+    $basic_line = $1 + 0
+  }
+
+  # Only do the tokenisation if there's a run of 2 capitals
+  if ($line !~ /[A-Z]{2}/)
+  {
+    $acc=$line;
+  }
+  else
+  {
+  tokbasic: while ($line ne "")
+    {
+      if ($line =~ s/^([ 0-9<>,.!^\%'\*\(\)\[\]:;=+\-\/#\/?\$]+)//)
+      {
+        $acc .= $1;
+        next;
+      } elsif ($line =~ s/^(&[0-9A-F])+//)
+      {
+        $acc .= $1;
+        next;
+      }
+      elsif ($line =~ s/^("[^"]*")//)
+      {
+        $acc .= $1;
+        next;
+      }
+      elsif ($line =~ /^([A-Z]{2})/)
+      {
+        # it might be a token; if so we need to identify which one
+        # study $line;
+        $name = $1; # check those 2 chars first
+        if (defined($bastoken{$name}))
+        {
+          $acc .= chr($bastoken{$name}[0]);
+          $line =~ s/^[A-Z]{2}//;
+          next tokbasic;
+        }
+        foreach $name (keys %bastoken)
+        {
+          if (length($name) <= 2)
+          { next; } # we've already checked it
+          if ($line =~ s/^\Q$name//)
+          {
+            # We've found a matching token; substitute in the accumulator
+            if ($name eq "ERR" && $line =~ s/^OR//)
+            { $name = "ERROR"; } # swap to the ERROR token instead
+            if ($name eq "END")
+            { # swap the END[PROC|CASE|IF] tokens instead
+              if ($line =~ s/^PROC//)    { $name = "ENDPROC"; }
+              elsif ($line =~ s/^CASE//) { $name = "ENDCASE"; }
+              elsif ($line =~ s/^IF//)   { $name = "ENDIF"; }
+            }
+            my $flag = $bastoken{$name}[1];
+            my $prefix = $basprefix{$flag};
+            if (defined $prefix) {
+                $acc .= chr($prefix);
+            }
+            $acc .= chr($bastoken{$name}[0]);
+            if ($name eq "REM")
+            { $acc .= $line; $line=""; }
+            next tokbasic;
+          }
+        }
+      }
+
+      # We didn't know it - it might be a variable name
+      if ($line =~ s/^([A-Za-z_\@][A-Za-z_0-9]*[\%\$]?)//)
+      {
+        # yup, a variable, so pass on directly
+        $acc .= $1;
+        next;
+      }
+
+      $line =~ s/^(.)//;
+      print STDERR "Didn't understand $1 in $line\n";
+    }
+  }
+  $basic_line += 10;
+  return "\x0d".chr($basic_line / 256).chr($basic_line % 256).chr(length($acc)+4).$acc;
+}
+
+
+##
+# Return the trailer of a BASIC file
+sub basic_trailer
+{
+    return "\x0d\xff\xff";
+}
