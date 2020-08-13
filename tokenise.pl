@@ -227,6 +227,8 @@ sub basic_init
     "WIDTH" => [0xfe, $basflag_transfer_r]
   );
 
+  @bastoken_names = sort { length($b) <=> length($a) } keys %bastoken;
+
   %basprefix = (
     $basflag_polymorphic + $basflag_two_byte + $basflag_transfer_r => 0xc8, # Statement like
     $basflag_two_byte + $basflag_transfer_l + $basflag_transfer_r => 0xc6,  # Function like
@@ -258,23 +260,56 @@ sub basic_tokenise
   local ($acc, $name);
   $acc = "";
 
+  $basic_line += 10;
+
   if ($acc =~ s/^ *(\d+)//)
   {
     # They prefixed with a line number, so we use it.
     $basic_line = $1 + 0
   }
 
+  #if ($basic_line >= 740)
+  #{ return ""; }
+
+  # Whether we're in a statement or not.
+  $statement = 1;
+
   # Only do the tokenisation if there's a run of 2 capitals
   if ($line !~ /[A-Z]{2}/)
   {
     $acc=$line;
   }
+  elsif ($line =~ /^( *\*.*)$/)
+  {
+    # Any * commands are special and should not be tokenised.
+    $acc .= $line;
+    $line = '';
+  }
+  elsif ($line =~ /^( *)ELSE$/)
+  {
+    # ELSE appears as a different token when bare on a line
+    $acc .= $1 . chr(0xcc);
+  }
   else
   {
   tokbasic: while ($line ne "")
     {
-      if ($line =~ s/^([ 0-9<>,.!^\%'\*\(\)\[\]:;=+\-\/#\/?\$]+)//)
+      if ($line =~ s/^( +)//)
       {
+        $acc .= $1;
+        next;
+      }
+
+      $is_statement = $statement;
+      $statement = 0;
+      #print("tokbasic: $line    : ACC: $acc\n");
+      if ($line =~ s/^([0-9<>,.!^\%'\*\(\)\[\];=+\-\/#\/?\$\|~]+)//)
+      {
+        $acc .= $1;
+        next;
+      } elsif ($line =~ s/^(:)//)
+      {
+        $statement = 1;
         $acc .= $1;
         next;
       } elsif ($line =~ s/^(&[0-9A-F])+//)
@@ -285,6 +320,7 @@ sub basic_tokenise
       elsif ($line =~ s/^("[^"]*")//)
       {
         $acc .= $1;
+        #print("String $1: Line: $line : ACC: $acc\n");
         next;
       }
       elsif ($line =~ /^([A-Z]{2})/)
@@ -298,29 +334,47 @@ sub basic_tokenise
           $line =~ s/^[A-Z]{2}//;
           next tokbasic;
         }
-        foreach $name (keys %bastoken)
+        # Go through the tokens from longest to shortest, so that we match things like
+        # GET$ before GET.
+        foreach $name (@bastoken_names)
         {
           if (length($name) <= 2)
           { next; } # we've already checked it
           if ($line =~ s/^\Q$name//)
           {
-            # We've found a matching token; substitute in the accumulator
-            if ($name eq "ERR" && $line =~ s/^OR//)
-            { $name = "ERROR"; } # swap to the ERROR token instead
-            if ($name eq "END")
-            { # swap the END[PROC|CASE|IF] tokens instead
-              if ($line =~ s/^PROC//)    { $name = "ENDPROC"; }
-              elsif ($line =~ s/^CASE//) { $name = "ENDCASE"; }
-              elsif ($line =~ s/^IF//)   { $name = "ENDIF"; }
-            }
             my $flag = $bastoken{$name}[1];
             my $prefix = $basprefix{$flag};
             if (defined $prefix) {
                 $acc .= chr($prefix);
             }
-            $acc .= chr($bastoken{$name}[0]);
+
+            if ($name eq 'PTR' && $is_statement)
+            {
+                # Special case for PTR as an lvar.
+                $acc .= chr(0xcf);
+            }
+            else
+            {
+                $acc .= chr($bastoken{$name}[0]);
+            }
+
+            # FIXME: Is DATA also untokenised?
             if ($name eq "REM")
-            { $acc .= $line; $line=""; }
+            {
+                # REM statements are never tokenised.
+                $acc .= $line; $line="";
+            }
+
+            elsif ($name eq 'THEN' || $name eq 'ELSE')
+            {
+                $statement = 1;
+                # * commands following THEN or ELSE should not be tokenised.
+                if ($line =~ /^( *\*.*)$/)
+                {
+                    $acc .= $line; $line = '';
+                }
+            }
+
             next tokbasic;
           }
         }
@@ -330,6 +384,7 @@ sub basic_tokenise
       if ($line =~ s/^([A-Za-z_\@][A-Za-z_0-9]*[\%\$]?)//)
       {
         # yup, a variable, so pass on directly
+        #print("$basic_line : Variable: $1 ($line)\n");
         $acc .= $1;
         next;
       }
@@ -338,7 +393,7 @@ sub basic_tokenise
       print STDERR "Didn't understand $1 in $line\n";
     }
   }
-  $basic_line += 10;
+  #print("Line $basic_line: $acc\n");
   return "\x0d".chr($basic_line / 256).chr($basic_line % 256).chr(length($acc)+4).$acc;
 }
 
@@ -347,5 +402,5 @@ sub basic_tokenise
 # Return the trailer of a BASIC file
 sub basic_trailer
 {
-    return "\x0d\xff\xff";
+    return "\x0d\xff";
 }
