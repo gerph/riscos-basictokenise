@@ -62,8 +62,7 @@ build-linux:
   <<: *common-cross
   stage: build-docs
   script:
-    - cd crosscompile
-    - make docs
+    - BUILD_DOCS=1 ci/build.sh native install
   tags:
     - linux
 

@@ -18,12 +18,17 @@ links: $(FILES)
 cross_export:
 	@echo No exports
 
+ifeq (${BUILD_DOCS},)
 cross_install: \
 		tool_dirs \
 		test \
 		$(ROTOOL_DIR)/$(COMPONENT) \
 		$(ROTOOL_DIR)/Help/$(COMPONENT)
 	@echo Installed to $(ROTOOL_DIR)
+else
+# FIXME: This is an ugly hack until we have a real rule for docs builds.
+cross_install: docs
+endif
 
 
 # Documentation
