@@ -41,7 +41,7 @@ build-linux:
   tags:
     - linux
 
-.build-macos:
+build-macos:
   <<: *common-cross
   stage: build-cross
   script:
@@ -57,8 +57,20 @@ build-linux:
     - ci/build.sh install
 
 
+#### Documentation ####
+build-linux:
+  <<: *common-cross
+  stage: build-docs
+  script:
+    - cd crosscompile
+    - make docs
+  tags:
+    - linux
+
+
 #### Stages to execute ####
 stages:
 #  - export
   - build-cross
+  - build-docs
 #  - build-riscos

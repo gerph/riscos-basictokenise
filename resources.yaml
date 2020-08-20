@@ -1,10 +1,10 @@
 ---
 
 resources:
-  build/native-build-headers:
+  build/native-build-tools:
     phases: native:install
     version: latest
-    path: $RO_NATIVE
+    path: $ROTOOL_DIR
 
 exports:
   build/cross/basictokenise:
@@ -13,3 +13,4 @@ exports:
     path: $ROTOOL_DIR
     files:
       - riscos-basictokenise
+      - Help/riscos-basictokenise
