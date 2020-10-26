@@ -26,7 +26,9 @@
 <command>*BASICTokenise</command> will process the text file to produce a BASIC
 file.</p>
 
-<p>The tool is only capable of converting simple BASIC code, without line number references.</p>
+<p>The tool is only capable of converting simple BASIC code, without line number references. That means that 'GOTO', 'GOSUB' and other line number referencing statements won't be tokenised.</p>
+
+<p>Lines may be given prefix numbers which will be used as the line number. Lines will not be reordered if they are given out of sequence. Lines without prefix numbers will be numbered from line 10 in steps of 10.</p>
 
 </use>
 
@@ -53,7 +55,10 @@ file.</p>
  </disclaimer>
 
  <history>
-  <revision number="1" author="Gerph" title="Initial version" />
+  <revision number="1" date="20 Aug 2020" author="Gerph" title="Initial version" />
+  <revision number="2" date="26 Oct 2020" author="Gerph" title="Added notes about supported features">
+    <change>We don't support line number references, and lines won't be reordered.</change>
+  </revision>
  </history>
 </meta>
 </riscos-prm>

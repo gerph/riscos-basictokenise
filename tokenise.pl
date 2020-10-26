@@ -1,10 +1,21 @@
 #!/usr/bin/perl
 ##
-# BASIC tokeniser; copied from HdrToH
+# BASIC tokeniser; based on the tokeniser in HdrToH.
+#
+# Should work with Perl 5.0 onwards.
+#
+# * Tokenises regular tokens.
+# * Does not handle 'GOTO' line numbers (shouldn't matter because nothing modern should use them)
+# * Understands line numbers prefixing lines.
+# * Expects the input to be in order - will not reorder the lines of the file.
+#
+# Syntax: Tokenise.pl <input> <output>
 #
 
 my $input = shift;
 my $output = shift;
+
+my $os = $^O || 'riscos';  # Perl 5.0 didn't support $^O, so we replace it with 'riscos' explicitly.
 
 if (!defined $input or !defined $output)
 {
@@ -29,6 +40,11 @@ $data = join('', @$basic);
 open(my $fh, "> $output") || die "Cannot write '$output': $!\n";
 print $fh $data;
 close($fh);
+
+if ($os eq 'riscos')
+{
+    system("SetType $output BASIC");
+}
 
 
 # Set up our BASIC tokeniser system

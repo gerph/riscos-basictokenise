@@ -1,3 +1,4 @@
 artifacts/
 ci-logs/
 riscos-build/
+prminxml/*.html
