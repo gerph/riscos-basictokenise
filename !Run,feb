@@ -1,1 +1,1 @@
-perl <Obey$Dir>.tokenise/pl %*0
+perl <Obey$Dir>.tokenise %*0

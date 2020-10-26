@@ -9,7 +9,7 @@ and unix-like systems.
 
 On unix-like systems:
 
-    ./tokenise.pl <input> <output>
+    ./basictokenise <input> <output>
 
 On RISC OS systems, it is expected that the took be invoked as a directory
 in your library, with the !Run file invoking the tool. As such, this would

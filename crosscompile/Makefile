@@ -49,7 +49,7 @@ $(ROTOOL_DIR)/Help/${COMPONENT}: ${DOCS_SRC}/basictokenise.xml
 	riscos-vtranslate ../VersionNum "${TEMPFILE}" $@
 	rm "${TEMPFILE}"
 
-$(ROTOOL_DIR)/${COMPONENT}: ../tokenise.pl
+$(ROTOOL_DIR)/${COMPONENT}: ../basictokenise
 	cp $? $@
 
 tool_dirs:

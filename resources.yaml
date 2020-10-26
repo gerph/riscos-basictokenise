@@ -2,9 +2,14 @@
 
 resources:
   build/native-build-tools:
-    phases: native:install
+    phases: native:install,install
     version: latest
     path: $ROTOOL_DIR
+
+  build/root-env:
+    phases: install
+    version: latest
+    path: $ROBUILD_DIR/Env
 
 exports:
   build/cross/basictokenise:
@@ -14,3 +19,8 @@ exports:
     files:
       - riscos-basictokenise
       - Help/riscos-basictokenise
+
+  library/basictokenise:
+    phases: install
+    newer: true
+    path: $INSTALL_DIR/Library
