@@ -308,6 +308,8 @@ sub basic_tokenise
   }
   else
   {
+    local $next_constant = 0;
+
   tokbasic: while ($line ne "")
     {
       if ($line =~ s/^( +)//)
@@ -316,10 +318,29 @@ sub basic_tokenise
         next;
       }
 
+      local $expect_constant = $next_constant;
+      $next_constant = 0;
+
       $is_statement = $statement;
       $statement = 0;
       #print("tokbasic: $line    : ACC: $acc\n");
-      if ($line =~ s/^([0-9<>,.!^\%'\*\(\)\[\];=+\-\/#\/?\$\|~]+)//)
+      if ($expect_constant && $line =~ s/^([0-9]+)//)
+      {
+        # Constant value (a line number) has a different encoding.
+        local $goto_line = 0 + $1;
+
+        $acc .= "\x8d"; # Line number introducer
+        # See algorithm described by Matt Godbolt: https://xania.org/200711/bbc-basic-line-number-format
+        local $goto_hi = $goto_line>>8;
+        local $goto_lo = $goto_line & 255;
+        local $top_bits = (($goto_hi >> 6) << 2) | (($goto_lo >> 6) << 4);
+        $goto_hi = $goto_hi & 63;
+        $goto_lo = $goto_lo & 63;
+        $acc .= chr($top_bits ^ 0x54);
+        $acc .= chr($goto_lo ^ 0x40);
+        $acc .= chr($goto_hi ^ 0x40);
+        next;
+      } elsif ($line =~ s/^([0-9<>,.!^\%'\*\(\)\[\];=+\-\/#\/?\$\|~]+)//)
       {
         $acc .= $1;
         next;
@@ -389,6 +410,12 @@ sub basic_tokenise
                 {
                     $acc .= $line; $line = '';
                 }
+            }
+
+            if ($flag & $basflag_constant)
+            {
+                # This token is followed by a constant (a line number).
+                $next_constant = 1;
             }
 
             next tokbasic;
