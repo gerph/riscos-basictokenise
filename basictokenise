@@ -433,7 +433,7 @@ sub basic_tokenise
       }
 
       $line =~ s/^(.)//;
-      print STDERR "Didn't understand $1 in $line\n";
+      print STDERR "Didn't understand $1 in $line (at line number $basic_line)\n";
     }
   }
   #print("Line $basic_line: $acc\n");
