@@ -278,7 +278,7 @@ sub basic_tokenise
 
   $basic_line += 10;
 
-  if ($acc =~ s/^ *(\d+)//)
+  if ($line =~ s/^ *(\d+)//)
   {
     # They prefixed with a line number, so we use it.
     $basic_line = $1 + 0
