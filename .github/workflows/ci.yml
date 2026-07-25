@@ -1,0 +1,151 @@
+---
+# Definition for CI within GitHub Actions
+#
+# Converted from .gitlab-ci.yml. The build-linux, build-macos and
+# build-command-riscos jobs depend on a RISC OS build environment
+# (riscos-amu and friends) being present on the runner, as they do on
+# their tagged GitLab runners. No such GitHub-hosted runner or container
+# image is known yet, so those jobs are left as TODOs below, to be
+# uncommented and pointed at a suitable self-hosted runner or container
+# once one is available.
+#
+# The build-docs job runs entirely on a GitHub-hosted runner using the
+# riscos-prminxml-action, and does not need the RISC OS build environment.
+#
+
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  #### Builds ####
+
+  # TODO: needs a RISC OS build environment (riscos-amu etc). Point
+  # runs-on at a suitable self-hosted runner or container once available.
+  #
+  # build-linux:
+  #   runs-on: [self-hosted, linux]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Update ci submodule
+  #       run: |
+  #         git submodule sync ci
+  #         git submodule update --init ci
+  #
+  #     - name: Build (native)
+  #       run: ci/build.sh native install
+  #
+  #     - uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: build-linux
+  #         path: |
+  #           artifacts
+  #           ci-logs
+
+  # TODO: needs a RISC OS build environment (riscos-amu etc). Point
+  # runs-on at a suitable self-hosted runner or container once available.
+  #
+  # build-macos:
+  #   runs-on: [self-hosted, macos]
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Update ci submodule
+  #       run: |
+  #         git submodule sync ci
+  #         git submodule update --init ci
+  #
+  #     - name: Build (native)
+  #       run: ci/build.sh native install
+  #
+  #     - uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: build-macos
+  #         path: |
+  #           artifacts
+  #           ci-logs
+
+  # TODO: needs a RISC OS build environment (riscos-amu etc). Point
+  # runs-on at a suitable self-hosted runner or container once available.
+  #
+  # build-command-riscos:
+  #   runs-on: self-hosted
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Update ci submodule
+  #       run: |
+  #         git submodule sync ci
+  #         git submodule update --init ci
+  #
+  #     - name: Build for RISC OS
+  #       run: ci/build.sh install
+  #
+  #     - uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: build-riscos
+  #         path: |
+  #           artifacts
+  #           ci-logs
+
+  #### Documentation ####
+
+  build-docs:
+    runs-on: ubuntu-latest
+    outputs:
+      leafname: ${{ steps.docsversion.outputs.leafname }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build PRM-in-XML documentation
+        uses: gerph/riscos-prminxml-action@v1
+        with:
+          files: prminxml/basictokenise.xml
+          output: docs-output
+          pdf-generator: prince
+          style: prm
+
+      - name: Package documentation
+        id: docsversion
+        run: |
+          version=$(awk -F'"' '/^#define Module_FullVersion[[:space:]]+"/ { print $2; exit }' VersionNum)
+          leafname="BASICTokenise-Documentation-$version.zip"
+          cd docs-output && zip -9r "../$leafname" *
+          echo "leafname=$leafname" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Documentation
+          path: ${{ steps.docsversion.outputs.leafname }}
+
+  #### Release ####
+
+  release:
+    needs:
+      - build-docs
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download documentation artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Documentation
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          prerelease: false
+          draft: true
+          artifacts: "${{ needs.build-docs.outputs.leafname }}"
+          artifactContentType: application/zip
