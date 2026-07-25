@@ -114,17 +114,18 @@ jobs:
           pdf-generator: prince
           style: prm
 
-      - name: Package documentation
+      - name: Package release archive
         id: docsversion
         run: |
           version=$(awk -F'"' '/^#define Module_FullVersion[[:space:]]+"/ { print $2; exit }' VersionNum)
-          leafname="BASICTokenise-Documentation-$version.zip"
+          leafname="BASICTokenise-$version.zip"
+          cp basictokenise docs-output/
           cd docs-output && zip -9r "../$leafname" *
           echo "leafname=$leafname" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Documentation
+          name: BASICTokenise
           path: ${{ steps.docsversion.outputs.leafname }}
 
   #### Release ####
@@ -137,10 +138,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download documentation artifact
+      - name: Download release archive
         uses: actions/download-artifact@v4
         with:
-          name: Documentation
+          name: BASICTokenise
 
       - name: Create Release
         uses: ncipollo/release-action@v1
