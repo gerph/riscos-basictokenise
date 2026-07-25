@@ -14,6 +14,13 @@
 
 my $input = shift;
 my $output = shift;
+my $version = "{Module_FullVersionAndDate}";
+
+if ($input eq '-version' || $input eq '-v')
+{
+    print "$version\n";
+    exit 0;
+}
 
 my $os = $^O || 'riscos';  # Perl 5.0 didn't support $^O, so we replace it with 'riscos' explicitly.
 

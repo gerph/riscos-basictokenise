@@ -13,7 +13,7 @@ include LibraryCommand
 target:
 		${MKDIR} ${INSTDIR}.${TARGET}
 		${CP} !Run ${INSTDIR}.${TARGET}.!Run ${CPFLAGS}
-		${CP} basictokenise ${INSTDIR}.${TARGET}.BASICTokenise ${CPFLAGS}
+		${VTRANSLATE} basictokenise ${INSTDIR}.${TARGET}.BASICTokenise
 
 #---------------------------------------------------------------------------
 # Dynamic dependencies:
