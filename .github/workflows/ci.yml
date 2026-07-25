@@ -106,7 +106,7 @@ jobs:
     outputs:
       leafname: ${{ steps.docsversion.outputs.leafname }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build PRM-in-XML documentation
         uses: gerph/riscos-prminxml-action@v1
