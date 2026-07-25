@@ -2,3 +2,7 @@ artifacts/
 ci-logs/
 riscos-build/
 prminxml/*.html
+.rotransform
+raw/*
+raw32/*
+raw64/*
