@@ -9,8 +9,10 @@
 # uncommented and pointed at a suitable self-hosted runner or container
 # once one is available.
 #
-# The build-docs job runs entirely on a GitHub-hosted runner using the
-# riscos-prminxml-action, and does not need the RISC OS build environment.
+# The build job runs entirely on a GitHub-hosted runner using the
+# riscos-prminxml-action to build the documentation, and packages the
+# basictokenise binary alongside it. It does not need the RISC OS build
+# environment.
 #
 
 name: CI
@@ -97,9 +99,9 @@ jobs:
   #           artifacts
   #           ci-logs
 
-  #### Documentation ####
+  #### Build ####
 
-  build-docs:
+  build:
     runs-on: ubuntu-latest
     outputs:
       leafname: ${{ steps.docsversion.outputs.leafname }}
@@ -134,7 +136,7 @@ jobs:
 
   release:
     needs:
-      - build-docs
+      - build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -150,5 +152,5 @@ jobs:
         with:
           prerelease: false
           draft: true
-          artifacts: "${{ needs.build-docs.outputs.leafname }}"
+          artifacts: "${{ needs.build.outputs.leafname }}"
           artifactContentType: application/zip
