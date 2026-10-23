@@ -102,7 +102,7 @@ jobs:
   #### Build ####
 
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       leafname: ${{ steps.docsversion.outputs.leafname }}
     steps:
